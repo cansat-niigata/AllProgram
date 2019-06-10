@@ -78,7 +78,6 @@ void L(){
 //その他--------------------------------------------------------
 float meter = 1.0;
 float close = 5.0;
-bool onTheGround = false;
 void PrintGPSInfo();
 void warmingupGPS();
 //---------------------------------------------------------------
@@ -128,7 +127,6 @@ void setup() {
 }
 
 void loop(){
-  if(!onTheGround){
     int flightPin = analogRead(FlightPin);
     if(flightPin < 50){
       delay(30000);     //30000に設定する
@@ -152,7 +150,7 @@ void loop(){
       onTheGround = true;
     }
     delay(100);  //あくまでデバックをみやすくするための記述
-  }else {
+  while(1) {
     //GPSの値を取得する
     //値が更新されるまで待機
     while (Serial1.available() > 0){
@@ -211,10 +209,6 @@ void loop(){
         while(true)
           ;
       }else {
-        /*if(PRE_LAT == gps.location.lat() && PRE_LON == gps.location.lng()){
-          stackMove();
-          Serial1.println("STACK");
-        }*/
         if(distanceKmToGoal < close){
           pid_r.set_Target(target2);
           pid_l.set_Target(target2);
