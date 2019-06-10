@@ -35,10 +35,6 @@ bool start_flag = false;
 static void smartDelay(unsigned long ms);
 double delta = 0;
 const int x = 15; //delta*xが機体の旋回時間
-static void printFloat(float val, bool valid, int len, int prec);
-static void printInt(unsigned long val, bool valid, int len);
-static void printDateTime(TinyGPSDate &d, TinyGPSTime &t);
-static void printStr(const char *str, int len);
 void PrintGPSInfo();
 unsigned long distanceKmToGoal;
 double courseToGoal;
@@ -134,19 +130,12 @@ void setup() {
 void loop(){
   if(!onTheGround){
     int flightPin = analogRead(FlightPin);
-    Serial.print("FlightPin:");
-    Serial.println(flightPin);
     if(flightPin < 50){
       delay(30000);     //30000に設定する
       //パラシュートを切り離す
       detouchParachute(servoPin);
-      datafile.print("detouchParachute");
-      datafile.println(',');
       
       //まずはパラシュートから離れるために直進する(10s)
-      datafile.print("first move");
-      datafile.println(',');
-      Serial.println("First Move");
       float t = millis();
       motor_r.rotationNormal_p(pid_r.get_conVar());
       motor_l.rotationNormal_p(pid_l.get_conVar());
@@ -157,26 +146,9 @@ void loop(){
       Timer1.resume();
       motor_r.stop();
       motor_l.stop();
-      Serial.println("Finish!");
 
-      //GPSの値が安定するまで待機
-      //datafile.print("warming up");
-      //datafile.println(',');
-      //Serial.println("Warming Up start");
-      //warmingupGPS();
-      //Serial.println("Warming up done");
-      
-      datafile.print("All preparetion is Success");
-      datafile.println(',');
-      datafile.flush();
-
-      //PrintKML_header();
       while(Serial1.available())
         Serial1.read();
-      
-      Serial1.println(F("Sats  Latitude  Longitude   Date       Time     Course Speed Card  Distance Course Card  Chars Sentences Checksum  delta"));
-      Serial1.println(F("      (deg)     (deg)                           --- from GPS ----  ---- to London  ----  RX    RX        Fail"));
-      Serial1.println(F("---------------------------------------------------------------------------------------------------------------------------------"));
       onTheGround = true;
     }
     delay(100);  //あくまでデバックをみやすくするための記述
@@ -209,12 +181,6 @@ void loop(){
       const char *cardinalToGoal = TinyGPSPlus::cardinal(courseToGoal);
       Serial1.print(cardinalToGoal);
       Serial1.print(",  ");
-      Serial1.print(gps.charsProcessed());
-      Serial1.print(",  ");
-      Serial1.print(gps.sentencesWithFix());
-      Serial1.print(",  ");
-      Serial1.print(gps.failedChecksum());
-      Serial1.print(",  ");
   
       double direction = TinyGPSPlus::courseTo(
         PRE_LAT,
@@ -230,7 +196,6 @@ void loop(){
       delta = angularDifference(courseToGoal, direction);  //ゴール方向と移動方向のなす角
       Serial1.println(delta);
       SaveToSDcard();
-      //SaveToSDcardWithKML();
       Timer1.pause();
       //目的地までの距離がゴール判定の基準に達したか？
       //目的地までの距離が十分近ければゴールしたと判断する
