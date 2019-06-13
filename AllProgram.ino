@@ -10,7 +10,7 @@
 TinyGPSPlus gps;
 
 //SD----------------------------------------
-File datafile; //csv
+File datafile; //csv形式
 #define SD_PIN PA4 //SPI通信に使うピン
 void SaveToSDcard();
 //------------------------------------------
@@ -116,7 +116,6 @@ void setup() {
   }else{
     Serial1.println("Card initialized.");
     datafile = SD.open("log.csv", FILE_WRITE);
-    //kml_log_file = SD.open("log.kml", FILE_WRITE);
   }
   digitalWrite(SD_PIN,HIGH); //SDの回線を遮断
   //---------------------------------------
