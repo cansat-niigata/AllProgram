@@ -5,8 +5,8 @@ void changePWM() {
   pid_r.update_conVar(r);
   pid_l.update_conVar(l);
   r = 0; l = 0;
-  motor_r.rotationNormal_p(pid_r.get_conVar());
-  motor_l.rotationNormal_p(pid_l.get_conVar());
+  motor_r.rotationNormal(pid_r.get_conVar());
+  motor_l.rotationNormal(pid_l.get_conVar());
 }
 
 /*----------------------------------------
