@@ -25,14 +25,18 @@ void detouchParachute(int PinNum);
 #define FlightPin PA0
 //------------------------------------------
 
-//gps(サンプルプログラムそのまま流用)------------------------------------------------
+//LED-----------------------------
+#define LED_R PC14
+#define LED_L PC15
+void Lchika(int times);
+void turnOffTheLight();
+//GPS------------------------------------------------
 //static const double GOAL_LAT = 37.866434, GOAL_LON = 138.938515;//目的地の位置座標（コウガクブトウマエ）
 //static const double GOAL_LAT = 37.867500, GOAL_LON = 138.937146;//目的地の位置座標（ブシツトウワキ）
 static const double GOAL_LAT = 37.871406, GOAL_LON = 138.942138;//目的地の位置座標（ヤキュウジョウ）
 
 double PRE_LAT = 0, PRE_LON = 0; //以前の位置情報
 bool start_flag = false;
-//static void smartDelay(unsigned long ms);
 double delta = 0;
 const int x = 15; //delta*xが機体の旋回時間
 void PrintGPSInfo();
@@ -41,10 +45,10 @@ double courseToGoal;
 //-----------------------------------------------------------------------------------
 
 //モータ用の変数--------------------------------------------
-#define rPWMPin PB6
-#define rPin PB7
-#define lPWMPin PB8
-#define lPin PB9
+#define rPWMPin PB8
+#define rPin PB9
+#define lPWMPin PB7
+#define lPin PB6
 UseMotor motor_r(rPWMPin, rPin);
 UseMotor motor_l(lPWMPin, lPin);
 double angularDifference(double goal, double myLocation);
@@ -60,8 +64,8 @@ void changePWM();
 
 //PID制御関連--------------------------------------------------
 PID pid_r, pid_l;
-const int target1 = 4;
-const int target2 = 2;
+const int target1 = 80;
+const int target2 = 70;
 void changePWM();
 void stackMove();
 //--------------------------------------------------------------
@@ -78,8 +82,6 @@ void L() {
 //その他--------------------------------------------------------
 float meter = 1.0;
 float close = 5.0;
-void PrintGPSInfo();
-void warmingupGPS();
 //---------------------------------------------------------------
 
 void setup() {
@@ -95,17 +97,17 @@ void setup() {
 
   //PID制御の設定---------------
   pid_r.set_Target(target1);
-  pid_r.set_Kp(5);
-  pid_r.set_conVar(170);
+  pid_r.set_Kp(0.2);
+  pid_r.set_conVar(180);
   pid_l.set_Target(target1);
-  pid_l.set_Kp(5);
-  pid_l.set_conVar(170);
+  pid_l.set_Kp(0.2);
+  pid_l.set_conVar(180);
 
   //割り込みの設定
   Timer1.pause();
   Timer1.setPrescaleFactor(10000);
-  Timer1.setOverflow(7200); //0.5秒でタイマー割り込み
-  Timer1.setCompare(1, 3600);
+  Timer1.setOverflow(1800); //0.5秒でタイマー割り込み
+  Timer1.setCompare(1, 1800);
   Timer1.attachInterrupt(1, changePWM);
   Timer1.refresh();
   Timer1.pause();
@@ -116,9 +118,9 @@ void setup() {
   pinMode(SD_PIN, OUTPUT); //SDに使うピンを設定
 
   if (!SD.begin(SD_PIN)) {
-    Serial1.println("Card failed, or not present");
+    Serial1.println(F("Card failed, or not present"));
   } else {
-    Serial1.println("Card initialized.");
+    Serial1.println(F("Card initialized."));
     datafile = SD.open("log.csv", FILE_WRITE);
   }
   digitalWrite(SD_PIN, HIGH); //SDの回線を遮断
@@ -127,54 +129,34 @@ void setup() {
   //割り込みの設定
   attachInterrupt(digitalPinToInterrupt(WARIKOMI_R), R, CHANGE);
   attachInterrupt(digitalPinToInterrupt(WARIKOMI_L), L, CHANGE);
-
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(PC14, HIGH);
-    digitalWrite(PC15, HIGH);
-    delay(500);
-    digitalWrite(PC14, LOW);
-    digitalWrite(PC15, LOW);
-    delay(500);
-  }
+  Lchika(3);
 }
 
 void loop() {
   int flightPin = 100;
-  digitalWrite(PC14, HIGH);
+  LchikaWait();
   while (flightPin > 50) {
     flightPin = analogRead(FlightPin);
     Serial1.println(flightPin);
     delay(10);
   }
-  digitalWrite(PC14, LOW);
-  for (int i = 0; i < 30; i++) {
-    if ((i % 2) == 0) {
-      digitalWrite(PC14, HIGH);
-      digitalWrite(PC15, LOW);
-    } else {
-      digitalWrite(PC14, LOW);
-      digitalWrite(PC15, HIGH);
-    }
-    delay(1000);
-  }
-  digitalWrite(PC14, HIGH);
-  digitalWrite(PC15, HIGH);
+  turnOffTheLight();
+  countDown(30); //30秒待機する
   //パラシュートを切り離す
   detouchParachute(servoPin);
-
+  LchikaStraight();
   //まずはパラシュートから離れるために直進する(10s)
   motor_r.rotationNormal(pid_r.get_conVar());
   motor_l.rotationNormal(pid_l.get_conVar());
 
   Timer1.resume();
   delay(10000);
-  Timer1.refresh();
-  Timer1.pause();
-  digitalWrite(PC14, LOW);
-  digitalWrite(PC15, LOW);
   motor_r.stop();
   motor_l.stop();
-  
+  Timer1.refresh();
+  Timer1.pause();
+  turnOffTheLight();
+
   while (1) {
     //GPSの値を取得する
     //値が更新されるまで待機
@@ -185,14 +167,8 @@ void loop() {
     //GPSの情報をSerial通信でパソコンに送信
     if (gps.location.isUpdated()) {
       //------------------GPS情報の表示--------------------
-      for (int i = 0; i < 3; i++) {
-        digitalWrite(PC14, HIGH);
-        digitalWrite(PC15, HIGH);
-        delay(50);
-        digitalWrite(PC14, LOW);
-        digitalWrite(PC15, LOW);
-        delay(50);
-      }
+      Lchika(5);
+      turnOffTheLight();
       PrintGPSInfo();
       distanceKmToGoal = (unsigned long)TinyGPSPlus::distanceBetween(
                            gps.location.lat(),
@@ -234,11 +210,10 @@ void loop() {
         //制御終了
         motor_r.stop();
         motor_l.stop();
-        Serial1.println("GOAL!!");
+        Serial1.println(F("GOAL!!"));
         datafile.println();
-        datafile.println("GOAL");
+        datafile.println(F("GOAL"));
         datafile.close();
-        //CloseKML();
         while (true) {
           digitalWrite(PC14, HIGH);
           digitalWrite(PC15, HIGH);
@@ -252,36 +227,33 @@ void loop() {
           pid_r.set_Target(target2);
           pid_l.set_Target(target2);
         }
-        if (delta > 0 {       //目的地から離れていた場合
+        if (delta > 0) {       //目的地から離れていた場合
           //deltaの値が正の時
           //左タイヤをdeltaに比例した量だけ回転
           motor_r.stop();
           motor_l.stop();
-          digitalWrite(PC14, HIGH);
+          LchikaLeft();
           motor_l.rotationNormal(pid_l.get_conVar());
           delay(x * delta);
-          digitalWrite(PC14, LOW);
         } else {
           //θの値が負の時
           //右タイヤをdeltaに比例した量だけ回転
           delta *= -1;
           motor_r.stop();
           motor_l.stop();
-          digitalWrite(PC15, HIGH);
+          LchikaLeft();
           motor_r.rotationNormal(pid_r.get_conVar());
           delay(x * delta);
-          digitalWrite(PC15, LOW);
         }
         //直進(次のGPSの値取得まで行う)
         //この時PID制御を行う
         //タイマー割り込みを利用
         r = 0; l = 0;
-        digitalWrite(PC14, HIGH);
-        digitalWrite(PC15, HIGH);
+        LchikaStraight();
         motor_r.rotationNormal(pid_r.get_conVar());
         motor_l.rotationNormal(pid_l.get_conVar());
         Timer1.refresh();
-        Timer1.resume();        
+        Timer1.resume();
       }
     }
   }

@@ -19,28 +19,3 @@ double angularDifference(double goal, double myLocation){
     angular += 360;
   return angular;
 }
-
-/*--------------------------------------------------------
- * サーボモータによるパラシュート切り離しの動作
- * プログラムの中でServo.hのインクルードが必要
- ---------------------------------------------------------*/
- void detouchParachute(int PinNum){
-  Servo myservo;
-  Serial1.println("Open the Cover");
-  myservo.attach(PinNum);
-  myservo.write(0);
-  delay(2000); //TinyGPS++を使わない場合 smartDelay→delay に変更してください
-  myservo.write(180);
-  delay(2000);
-  myservo.write(0);
-  delay(2000);
-  myservo.write(180);
-  delay(2000);
-  myservo.write(0);
-  delay(2000);
-  myservo.write(180);
-  delay(2000);
-  myservo.write(0);
-  myservo.detach();
-  Serial1.println("Finish!");
- }
